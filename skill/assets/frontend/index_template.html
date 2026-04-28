@@ -5,7 +5,9 @@
   添加新图表的三步：
     1. 在布局里加一个 <div class="chart-wrapper"><div class="chart" id="my-chart"></div></div>
     2. 写一个 initMyChart(data) 函数（克隆下面 initTimelineChart 的写法）
-    3. 把 fetch('/api/my-endpoint') 加到 Promise.all([...]) 里
+    3. 把 fetch('api/my-endpoint') 加到 Promise.all([...]) 里
+
+  重要：使用相对路径 'api/' 而不是绝对路径 '/api/'，支持nginx子路径部署
 
   完整跑通的示例见 demo/templates/index.html
 -->
@@ -102,9 +104,9 @@
         // ---- 启动 ----
         document.addEventListener('DOMContentLoaded', () => {
             Promise.all([
-                fetch('/api/summary').then(r => r.json()),
-                fetch('/api/timeline').then(r => r.json()),
-                fetch('/api/distribution').then(r => r.json()),
+                fetch('api/summary').then(r => r.json()),
+                fetch('api/timeline').then(r => r.json()),
+                fetch('api/distribution').then(r => r.json()),
             ]).then(([summary, timeline, distribution]) => {
                 renderKPIs(summary);
                 initTimelineChart(timeline);

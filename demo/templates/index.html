@@ -177,11 +177,11 @@
         // ==================== 启动 ====================
         document.addEventListener('DOMContentLoaded', () => {
             Promise.all([
-                fetch('/api/summary').then(r => r.json()),
-                fetch('/api/timeline').then(r => r.json()),
-                fetch('/api/distribution').then(r => r.json()),
-                fetch('/api/geo').then(r => r.json()),
-                fetch('/api/ranking').then(r => r.json()),
+                fetch('api/summary').then(r => r.json()),
+                fetch('api/timeline').then(r => r.json()),
+                fetch('api/distribution').then(r => r.json()),
+                fetch('api/geo').then(r => r.json()),
+                fetch('api/ranking').then(r => r.json()),
             ]).then(([summary, timeline, distribution, geo, ranking]) => {
                 document.getElementById('updated').textContent = '最后更新：' + summary.last_update;
                 initTimelineChart(timeline);
