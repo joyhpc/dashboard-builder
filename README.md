@@ -43,6 +43,32 @@ python app.py
 
 包含 5 个 KPI 卡片、月平均气温趋势图、城市排名、天气分布、地理散点图。完整文件结构和代码可以直接对照学。
 
+---
+
+## 📐 系统架构
+
+### 整体框架
+
+![Dashboard Builder系统框架图](Dashboard%20Builder系统框架图.png)
+
+**三层架构：**
+- **前端层** - ECharts图表渲染 + 响应式布局
+- **应用层** - Flask路由控制 + Pandas数据处理
+- **数据层** - 多源支持（Excel/CSV/API/数据库）
+
+### 业务数据流
+
+![Dashboard Builder业务数据流图](Dashboard%20Builder业务数据流图.png)
+
+**完整链路：**
+1. 用户提供数据源
+2. Claude分析数据结构
+3. 生成Flask后端 + ECharts前端
+4. 部署到nginx
+5. 用户访问仪表盘
+
+详细架构说明见 [ARCHITECTURE-DETAILED.md](ARCHITECTURE-DETAILED.md)
+
 ## 🚀 用起来 —— 三步
 
 ### 1. 把 Skill 装进 Claude
