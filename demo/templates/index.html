@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球城市气温仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0f1c3a 0%, #1a2847 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+        }
+        .dashboard {
+            padding: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+        }
+        .subtitle {
+            font-size: 13px;
+            opacity: 0.6;
+        }
+
+        /* KPI 卡片 */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .metric-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+        .metric-card:hover { transform: translateY(-2px); }
+        .metric-card .label {
+            font-size: 13px;
+            opacity: 0.65;
+            margin-bottom: 8px;
+        }
+        .metric-card .value {
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .metric-card .value.warning { color: #f5a623; }
+        .metric-card .value.danger { color: #e85a71; }
+        .metric-card .unit {
+            font-size: 14px;
+            opacity: 0.6;
+            margin-left: 4px;
+        }
+
+        /* 图表网格 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .chart-wrapper {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px;
+            border-radius: 10px;
+        }
+        .chart-wrapper.wide { grid-column: span 2; }
+        .chart-wrapper h3 {
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.85;
+            margin-bottom: 12px;
+        }
+        .chart {
+            width: 100%;
+            height: 360px;
+        }
+        .chart.tall { height: 420px; }
+
+        footer {
+            font-size: 12px;
+            opacity: 0.5;
+            text-align: center;
+            padding-top: 16px;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 900px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .chart-wrapper.wide { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>🌡️ 全球城市气温仪表盘</h1>
+            <span class="subtitle" id="updated">数据加载中…</span>
+        </header>
+
+        <!-- KPI 卡片 -->
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="label">覆盖城市</div>
+                <div class="value" id="kpi-cities">{{ summary.city_count }}<span class="unit">座</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="label">数据记录</div>
+                <div class="value" id="kpi-records">{{ summary.record_count }}<span class="unit">条</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="label">最高气温</div>
+                <div class="value danger" id="kpi-max">{{ summary.max_temp }}<span class="unit">℃</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="label">最低气温</div>
+                <div class="value" id="kpi-min" style="color:#5b8def">{{ summary.min_temp }}<span class="unit">℃</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="label">十年升温</div>
+                <div class="value warning" id="kpi-warming">+{{ summary.warming_decade }}<span class="unit">℃</span></div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+            <!-- 主图：时间趋势（横跨整行） -->
+            <div class="chart-wrapper wide">
+                <h3>📈 全球月平均气温趋势（含 12 个月移动平均）</h3>
+                <div class="chart tall" id="timeline-chart"></div>
+            </div>
+
+            <!-- 城市排名横向条形图 -->
+            <div class="chart-wrapper">
+                <h3>🏙️ 2023 年各城市年均气温</h3>
+                <div class="chart" id="ranking-chart"></div>
+            </div>
+
+            <!-- 天气分布环形图 -->
+            <div class="chart-wrapper">
+                <h3>☁️ 天气类型占比（10 年累计）</h3>
+                <div class="chart" id="distribution-chart"></div>
+            </div>
+
+            <!-- 地理散点图（横跨整行） -->
+            <div class="chart-wrapper wide">
+                <h3>🗺️ 城市地理分布与温度（点的大小代表温度高低）</h3>
+                <div class="chart tall" id="geo-chart"></div>
+            </div>
+        </div>
+
+        <footer>
+            数据来源：基于真实城市统计的合成数据集（2014-2023）· Powered by dashboard-builder
+        </footer>
+    </div>
+
+    <script>
+        // ==================== 主题 ====================
+        const PALETTE = ['#5b8def', '#5ad6ad', '#f5a623', '#e85a71', '#9b59ff', '#3dc1d3'];
+        const AXIS_COLOR = 'rgba(255,255,255,0.65)';
+        const SPLIT_COLOR = 'rgba(255,255,255,0.08)';
+
+        // ==================== 启动 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            Promise.all([
+                fetch('/api/summary').then(r => r.json()),
+                fetch('/api/timeline').then(r => r.json()),
+                fetch('/api/distribution').then(r => r.json()),
+                fetch('/api/geo').then(r => r.json()),
+                fetch('/api/ranking').then(r => r.json()),
+            ]).then(([summary, timeline, distribution, geo, ranking]) => {
+                document.getElementById('updated').textContent = '最后更新：' + summary.last_update;
+                initTimelineChart(timeline);
+                initRankingChart(ranking);
+                initDistributionChart(distribution);
+                initGeoChart(geo);
+            }).catch(err => {
+                console.error('数据加载失败:', err);
+                document.getElementById('updated').textContent = '⚠️ 数据加载失败，请检查后端是否启动';
+            });
+        });
+
+        // ==================== 图表初始化 ====================
+        function initTimelineChart(data) {
+            const chart = echarts.init(document.getElementById('timeline-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,28,58,0.95)', borderColor: '#5b8def', textStyle: { color: '#fff' } },
+                legend: { textStyle: { color: AXIS_COLOR }, top: 0 },
+                grid: { left: 50, right: 20, top: 40, bottom: 30 },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR },
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '℃',
+                    nameTextStyle: { color: AXIS_COLOR },
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR },
+                    splitLine: { lineStyle: { color: SPLIT_COLOR } },
+                },
+                series: [
+                    {
+                        name: '月平均温度',
+                        type: 'line',
+                        data: data.values,
+                        showSymbol: false,
+                        itemStyle: { color: PALETTE[0] },
+                        lineStyle: { width: 1, opacity: 0.6 },
+                    },
+                    {
+                        name: '12 个月移动平均',
+                        type: 'line',
+                        data: data.moving_avg,
+                        showSymbol: false,
+                        itemStyle: { color: PALETTE[3] },
+                        lineStyle: { width: 3 },
+                    },
+                ],
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        function initRankingChart(data) {
+            const chart = echarts.init(document.getElementById('ranking-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: 70, right: 30, top: 10, bottom: 30 },
+                xAxis: {
+                    type: 'value',
+                    name: '℃',
+                    nameTextStyle: { color: AXIS_COLOR },
+                    axisLabel: { color: AXIS_COLOR },
+                    splitLine: { lineStyle: { color: SPLIT_COLOR } },
+                },
+                yAxis: {
+                    type: 'category',
+                    data: data.cities,
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR },
+                },
+                series: [{
+                    type: 'bar',
+                    data: data.temps,
+                    itemStyle: {
+                        color: (params) => {
+                            // 温度越高越红
+                            const t = params.value;
+                            if (t > 25) return '#e85a71';
+                            if (t > 18) return '#f5a623';
+                            if (t > 10) return '#5ad6ad';
+                            return '#5b8def';
+                        }
+                    },
+                    label: { show: true, position: 'right', color: AXIS_COLOR, formatter: '{c}℃' },
+                }],
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        function initDistributionChart(data) {
+            const chart = echarts.init(document.getElementById('distribution-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: {c} 天 ({d}%)' },
+                legend: { bottom: 0, textStyle: { color: AXIS_COLOR } },
+                color: PALETTE,
+                series: [{
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    center: ['50%', '45%'],
+                    avoidLabelOverlap: true,
+                    label: { color: AXIS_COLOR, formatter: '{b}\n{d}%' },
+                    data: data.categories.map((name, i) => ({ name, value: data.values[i] })),
+                }],
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        function initGeoChart(data) {
+            // 用普通散点图 + 经纬度坐标，避免下载 GeoJSON 增加部署复杂度
+            const chart = echarts.init(document.getElementById('geo-chart'));
+            const points = data.cities.map(c => [c.lon, c.lat, c.temp, c.name, c.country]);
+
+            chart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: (p) => `${p.value[3]}（${p.value[4]}）<br/>2023 年均温：${p.value[2]}℃`,
+                    backgroundColor: 'rgba(15,28,58,0.95)',
+                    borderColor: '#5b8def',
+                    textStyle: { color: '#fff' },
+                },
+                grid: { left: 50, right: 30, top: 30, bottom: 40 },
+                xAxis: {
+                    type: 'value',
+                    name: '经度',
+                    nameTextStyle: { color: AXIS_COLOR },
+                    min: -180, max: 180,
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR, formatter: '{value}°' },
+                    splitLine: { lineStyle: { color: SPLIT_COLOR } },
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '纬度',
+                    nameTextStyle: { color: AXIS_COLOR },
+                    min: -60, max: 80,
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR, formatter: '{value}°' },
+                    splitLine: { lineStyle: { color: SPLIT_COLOR } },
+                },
+                visualMap: {
+                    min: 0, max: 30,
+                    dimension: 2,
+                    calculable: true,
+                    inRange: { color: ['#5b8def', '#5ad6ad', '#f5a623', '#e85a71'] },
+                    textStyle: { color: AXIS_COLOR },
+                    left: 'right', bottom: 50,
+                    text: ['热', '冷'],
+                },
+                series: [{
+                    type: 'scatter',
+                    data: points,
+                    symbolSize: (val) => Math.max(15, val[2] + 10),
+                    label: {
+                        show: true,
+                        formatter: (p) => p.value[3],
+                        position: 'right',
+                        color: AXIS_COLOR,
+                        fontSize: 11,
+                    },
+                }],
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 虚拟环境
+venv/
+env/
+.venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Flask
+instance/
+*.log
+
+# 用户的数据文件（不应提交别人的私有数据）
+*.xlsx
+*.xls
+!demo/data.csv
+!demo/*.xlsx
+
+# 输出目录（Claude 生成的项目放这里，不应提交）
+outputs/

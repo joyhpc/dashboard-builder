@@ -1,0 +1,178 @@
+<!--
+  Dashboard Builder skill 的前端模板。
+  保存为 templates/index.html。
+
+  添加新图表的三步：
+    1. 在布局里加一个 <div class="chart-wrapper"><div class="chart" id="my-chart"></div></div>
+    2. 写一个 initMyChart(data) 函数（克隆下面 initTimelineChart 的写法）
+    3. 把 fetch('/api/my-endpoint') 加到 Promise.all([...]) 里
+
+  完整跑通的示例见 demo/templates/index.html
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f1c3a;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+        }
+        .dashboard {
+            padding: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        h1 { font-size: 22px; font-weight: 500; opacity: 0.9; }
+
+        /* KPI 卡片 */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .metric-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .metric-card .label { font-size: 13px; opacity: 0.65; margin-bottom: 8px; }
+        .metric-card .value { font-size: 28px; font-weight: 600; }
+
+        /* 图表 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 16px;
+        }
+        .chart-wrapper {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px;
+            border-radius: 10px;
+        }
+        .chart-wrapper h3 { font-size: 14px; font-weight: 500; opacity: 0.8; margin-bottom: 12px; }
+        .chart { width: 100%; height: 360px; }
+        .updated { font-size: 12px; opacity: 0.5; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>数据仪表盘</h1>
+
+        <!-- KPI 卡片：字段名跟 prepare_summary_data() 返回的键对应 -->
+        <div class="metrics-row">
+            <div class="metric-card"><div class="label">总数</div><div class="value" id="kpi-total">—</div></div>
+            <div class="metric-card"><div class="label">最大值</div><div class="value" id="kpi-max">—</div></div>
+            <div class="metric-card"><div class="label">最小值</div><div class="value" id="kpi-min">—</div></div>
+            <div class="metric-card"><div class="label">平均值</div><div class="value" id="kpi-avg">—</div></div>
+        </div>
+
+        <!-- 图表区：按需增删 .chart-wrapper -->
+        <div class="charts-grid">
+            <div class="chart-wrapper">
+                <h3>时间趋势</h3>
+                <div class="chart" id="timeline-chart"></div>
+            </div>
+            <div class="chart-wrapper">
+                <h3>分类分布</h3>
+                <div class="chart" id="distribution-chart"></div>
+            </div>
+        </div>
+
+        <div class="updated" id="updated">加载中…</div>
+    </div>
+
+    <script>
+        // ---- 主题 ----
+        const PALETTE = ['#5b8def', '#5ad6ad', '#f5a623', '#e85a71', '#9b59ff', '#3dc1d3'];
+        const AXIS_COLOR = 'rgba(255,255,255,0.6)';
+        const SPLIT_COLOR = 'rgba(255,255,255,0.08)';
+
+        // ---- 启动 ----
+        document.addEventListener('DOMContentLoaded', () => {
+            Promise.all([
+                fetch('/api/summary').then(r => r.json()),
+                fetch('/api/timeline').then(r => r.json()),
+                fetch('/api/distribution').then(r => r.json()),
+            ]).then(([summary, timeline, distribution]) => {
+                renderKPIs(summary);
+                initTimelineChart(timeline);
+                initDistributionChart(distribution);
+            }).catch(err => {
+                console.error('数据加载失败:', err);
+                document.getElementById('updated').textContent = '⚠️ 加载失败，请检查后端';
+            });
+        });
+
+        function renderKPIs(s) {
+            document.getElementById('kpi-total').textContent = s.total ?? '—';
+            document.getElementById('kpi-max').textContent   = s.max   ?? '—';
+            document.getElementById('kpi-min').textContent   = s.min   ?? '—';
+            document.getElementById('kpi-avg').textContent   = s.avg   ?? '—';
+            if (s.last_update) {
+                document.getElementById('updated').textContent = '最后更新：' + s.last_update;
+            }
+        }
+
+        function initTimelineChart(data) {
+            const chart = echarts.init(document.getElementById('timeline-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'axis' },
+                grid: { left: 40, right: 20, top: 30, bottom: 30 },
+                xAxis: {
+                    type: 'category',
+                    data: data.dates,
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR },
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { lineStyle: { color: AXIS_COLOR } },
+                    axisLabel: { color: AXIS_COLOR },
+                    splitLine: { lineStyle: { color: SPLIT_COLOR } },
+                },
+                series: [{
+                    type: 'line',
+                    data: data.values,
+                    smooth: true,
+                    showSymbol: false,
+                    itemStyle: { color: PALETTE[0] },
+                    areaStyle: { color: PALETTE[0], opacity: 0.15 },
+                }],
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        function initDistributionChart(data) {
+            const chart = echarts.init(document.getElementById('distribution-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+                legend: { bottom: 0, textStyle: { color: AXIS_COLOR } },
+                color: PALETTE,
+                series: [{
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    center: ['50%', '45%'],
+                    avoidLabelOverlap: true,
+                    label: { color: AXIS_COLOR },
+                    data: (data.categories || []).map((name, i) => ({
+                        name, value: data.values[i],
+                    })),
+                }],
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+    </script>
+</body>
+</html>

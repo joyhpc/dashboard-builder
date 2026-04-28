@@ -1,0 +1,5 @@
+flask>=2.3.0
+pandas>=2.0.0
+openpyxl>=3.1.0     # 处理 .xlsx 文件需要；不用 Excel 可以删
+# requests>=2.31.0  # 从 HTTP API 取数据时取消注释
+# gunicorn>=21.0.0  # 生产部署时取消注释
